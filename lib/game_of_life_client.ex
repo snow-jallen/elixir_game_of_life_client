@@ -1,12 +1,27 @@
 defmodule GameOfLifeClient do
-  def game do
-    {:ok, guid} = register("http://localhost")
+  alias HTTPoison
+
+  def start do
+    {:ok, guid} = register("http://localhost", "test")
+    guid
   end
 
-  def register(endpoint) do
+  def register(endpoint, name) do
     HTTPoison.start
-    body = Poison.encode!(%{name: "class"})
+    body = Poison.encode!(%{name: name})
     headers = [{"Content-type", "application/json"}]
-    HTTPoison.post!(endpoint<>"/register", body, headers)
+    case HTTPoison.post!(endpoint<>"/register", body, headers) do
+      %HTTPoison.Response{status_code: 500} ->
+        register(endpoint, name <> "_1")
+      %HTTPoison.Response{status_code: 200, body: body} ->
+        body
+        |> Poison.decode
+        |> case do
+          {:ok, %{"token" => token}} -> {:ok, token}
+          _ -> {:error, "Unable to identify token in 200 response"}
+        end
+      _ ->
+        {:error, "Unable to parse response"}
+    end
   end
 end
