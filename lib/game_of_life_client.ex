@@ -1,4 +1,11 @@
 defmodule GameOfLifeClient do
+  @moduledoc """
+  Start your game of life server by running the following command:
+
+  docker pull snowcollege/gameoflife-server
+  docker run -it --rm -p 0.0.0.0:80:80 snowcollege/gameoflife-server
+
+  """
   alias HTTPoison
 
   def start do
