@@ -38,7 +38,7 @@ defmodule GameOfLifeClient do
   end
 
   def heartbeat(endpoint, token) do
-    Process.sleep(1_000)
+    Process.sleep(5_000)
 
     body = Poison.encode!(%{token: token})
     headers = [{"content-type", "application/json"}]
