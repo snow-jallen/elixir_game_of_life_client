@@ -13,7 +13,15 @@ defmodule GameOfLifeClient do
   def start do
     {:ok, guid} = register(@endpoint, "test")
     IO.inspect guid
-    heartbeat_pid = spawn(fn -> heartbeat(@endpoint, guid) end)
+    memory_pid = spawn(fn -> remember(0) end)
+    IO.inspect(memory_pid, label: "memory_pid")
+
+    solver_pid = spawn(fn -> solve(memory_pid) end)
+    IO.inspect(solver_pid, label: "solver_pid")
+
+    has_started = false
+    heartbeat_pid = spawn(fn -> heartbeat(@endpoint, guid, memory_pid, solver_pid, has_started) end)
+    IO.inspect(heartbeat_pid, label: "heartbeat_pid")
     heartbeat_pid
   end
 
@@ -37,10 +45,16 @@ defmodule GameOfLifeClient do
     end
   end
 
-  def heartbeat(endpoint, token) do
+  def heartbeat(endpoint, token, memory_pid, solver_pid, has_started) do
     Process.sleep(5_000)
 
-    body = Poison.encode!(%{token: token})
+    send(memory_pid, {:get, self()})
+    current_generation =
+      receive do
+        {:current_generation, gen} -> gen
+      end
+
+    body = Poison.encode!(%{token: token, generationsComputed: current_generation})
     headers = [{"content-type", "application/json"}]
     case HTTPoison.post!(endpoint<>"/update", body, headers) do
       %HTTPoison.Response{status_code: 200, body: body} ->
@@ -48,11 +62,36 @@ defmodule GameOfLifeClient do
         |> Poison.decode
         |> IO.inspect(label: "update")
         |> case do
-          {:ok, %{"isError" => false}} -> "it worked!"
+          {:ok, %{"isError" => false, "gameState" => game_state, "generationsToCompute" => generations_to_compute, "seedBoard" => seed_board}} ->
+            case game_state do
+              "InProgress" when has_started == false ->
+                solver_pid = spawn(fn -> Game.run(seed_board, generations_to_compute, memory_pid) end)
+                has_started = true
+              "InProgress" when has_started == true ->
+                send(solver_pid, %{board: seed_board, generations: generations_to_compute})
+              _ -> nil
+            end
           {:ok, %{"errorMessage" => error}} -> {:error, error}
         end
     end
 
-    heartbeat(endpoint, token)
+    heartbeat(endpoint, token, memory_pid, solver_pid, has_started)
+  end
+
+  def remember(current_generation) do
+    receive do
+      {:get, pid} ->
+        send(pid, {:current_generation, current_generation})
+        remember(current_generation)
+      {:set, new_generation} ->
+        remember(new_generation)
+    end
+  end
+
+  def solve(mem_pid) do
+    receive do
+      %{board: seed_board, generations: generations_to_compute} ->
+        Game.run(seed_board, generations_to_compute, mem_pid)
+    end
   end
 end
