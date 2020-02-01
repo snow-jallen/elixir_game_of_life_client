@@ -16,11 +16,7 @@ defmodule GameOfLifeClient do
     memory_pid = spawn(fn -> remember(0) end)
     IO.inspect(memory_pid, label: "memory_pid")
 
-    solver_pid = spawn(fn -> solve(memory_pid) end)
-    IO.inspect(solver_pid, label: "solver_pid")
-
-    has_started = false
-    heartbeat_pid = spawn(fn -> heartbeat(@endpoint, guid, memory_pid, solver_pid, has_started) end)
+    heartbeat_pid = spawn(fn -> heartbeat(@endpoint, guid, memory_pid, nil) end)
     IO.inspect(heartbeat_pid, label: "heartbeat_pid")
     heartbeat_pid
   end
@@ -45,8 +41,11 @@ defmodule GameOfLifeClient do
     end
   end
 
-  def heartbeat(endpoint, token, memory_pid, solver_pid, has_started) do
+  def heartbeat(endpoint, token, memory_pid, solver_pid) do
     Process.sleep(5_000)
+
+    solver_pid
+    |> IO.inspect(label: "starting heartbeat() w/solver_pid")
 
     send(memory_pid, {:get, self()})
     current_generation =
@@ -56,6 +55,7 @@ defmodule GameOfLifeClient do
 
     body = Poison.encode!(%{token: token, generationsComputed: current_generation})
     headers = [{"content-type", "application/json"}]
+
     case HTTPoison.post!(endpoint<>"/update", body, headers) do
       %HTTPoison.Response{status_code: 200, body: body} ->
         body
@@ -63,19 +63,31 @@ defmodule GameOfLifeClient do
         |> IO.inspect(label: "update")
         |> case do
           {:ok, %{"isError" => false, "gameState" => game_state, "generationsToCompute" => generations_to_compute, "seedBoard" => seed_board}} ->
-            case game_state do
-              "InProgress" when has_started == false ->
-                solver_pid = spawn(fn -> Game.run(seed_board, generations_to_compute, memory_pid) end)
-                has_started = true
-              "InProgress" when has_started == true ->
-                send(solver_pid, %{board: seed_board, generations: generations_to_compute})
-              _ -> nil
-            end
+            solver_pid =
+              case game_state do
+                "InProgress" when solver_pid == nil ->
+                  cells =
+                    seed_board
+                    |> Enum.map(fn c -> %Cell{x: c["x"], y: c["y"]} end)
+                  spawn(fn -> Game.run(cells, generations_to_compute, memory_pid) end)
+                _ -> :keep_going
+              end
+            solver_pid
           {:ok, %{"errorMessage" => error}} -> {:error, error}
         end
     end
-
-    heartbeat(endpoint, token, memory_pid, solver_pid, has_started)
+    |> IO.inspect(label: "output from post! case")
+    |> case do
+      {:error, error} ->
+        IO.puts("reporting error!!!")
+        {:error, error}
+      :keep_going ->
+        IO.puts("keep going w/original solver_pid")
+        heartbeat(endpoint, token, memory_pid, solver_pid)
+      solver_pid ->
+        IO.puts("solver pid returned, calling heartbeat w/solver_pid")
+        heartbeat(endpoint, token, memory_pid, solver_pid)
+    end
   end
 
   def remember(current_generation) do
@@ -85,13 +97,6 @@ defmodule GameOfLifeClient do
         remember(current_generation)
       {:set, new_generation} ->
         remember(new_generation)
-    end
-  end
-
-  def solve(mem_pid) do
-    receive do
-      %{board: seed_board, generations: generations_to_compute} ->
-        Game.run(seed_board, generations_to_compute, mem_pid)
     end
   end
 end

@@ -4,6 +4,7 @@ defmodule Game do
   end
 
   def run(starting_board, num_generations, memory_pid) do
+    IO.puts("sending :progress #{num_generations} to memory_pid #{inspect memory_pid}")
     send(memory_pid, {:progress, num_generations})
     starting_board
     |> Board.advance()
