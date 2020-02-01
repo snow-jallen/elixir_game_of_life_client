@@ -1,13 +1,15 @@
 defmodule Game do
-  def run(starting_board, 0, _memory_pid) do
-    starting_board
+  def run(final_board, generations_to_compute, generations_computed , memory_pid) when generations_computed == generations_to_compute do
+    IO.puts("run(): sending {:complete, #{generations_computed}, final_board}")
+    send(memory_pid, {:complete, generations_computed, final_board})
+    final_board
   end
 
-  def run(starting_board, num_generations, memory_pid) do
-    IO.puts("sending :progress #{num_generations} to memory_pid #{inspect memory_pid}")
-    send(memory_pid, {:progress, num_generations})
+  def run(starting_board, generations_to_compute, generations_computed, memory_pid) do
+    IO.puts("run(): sending {:progress, #{generations_computed}} to memory_pid #{inspect memory_pid}")
+    send(memory_pid, {:progress, generations_computed})
     starting_board
     |> Board.advance()
-    |> run(num_generations - 1, memory_pid)
+    |> run(generations_to_compute, generations_computed + 1, memory_pid)
   end
 end
