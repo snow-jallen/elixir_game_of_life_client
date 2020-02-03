@@ -8,18 +8,18 @@ defmodule GameOfLifeClient do
   """
   alias HTTPoison
 
-  @endpoint "http://localhost"
+  def start(), do: start("http://localhost")
 
-  def start do
+  def start(endpoint) do
     IO.puts("********************************************************************")
     IO.puts("****           Starting new Game of Life Client                ****")
     IO.puts("********************************************************************")
-    {:ok, guid} = register(@endpoint, "test")
+    {:ok, guid} = register(endpoint, "test")
     IO.inspect guid
     memory_pid = spawn(fn -> remember(0, nil) end)
     IO.inspect(memory_pid, label: "memory_pid")
 
-    heartbeat_pid = spawn(fn -> heartbeat(@endpoint, guid, memory_pid, nil) end)
+    heartbeat_pid = spawn(fn -> heartbeat(endpoint, guid, memory_pid, nil) end)
     IO.inspect(heartbeat_pid, label: "heartbeat_pid")
     heartbeat_pid
   end
