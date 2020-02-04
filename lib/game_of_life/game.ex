@@ -1,15 +1,20 @@
 defmodule Game do
-  def run(final_board, generations_to_compute, generations_computed , memory_pid) when generations_computed == generations_to_compute do
-    IO.puts("run(): sending {:complete, #{generations_computed}, final_board}")
-    send(memory_pid, {:complete, generations_computed, final_board})
+  defstruct starting_board: [], generations_to_compute: 0, generations_computed: 0, memory_pid: nil
+
+  def run(%Game{generations_computed: computed, generations_to_compute: to_compute, starting_board: final_board, memory_pid: memory_pid}) when computed == to_compute do
+    IO.puts("run(): sending {:complete, #{computed}, final_board}")
+    send(memory_pid, {:complete, computed, final_board})
     final_board
   end
 
-  def run(starting_board, generations_to_compute, generations_computed, memory_pid) do
-    IO.puts("run(): sending {:progress, #{generations_computed}} to memory_pid #{inspect memory_pid}")
-    send(memory_pid, {:progress, generations_computed})
-    starting_board
-    |> Board.advance()
-    |> run(generations_to_compute, generations_computed + 1, memory_pid)
+  def run(game_state = %Game{}) do
+    IO.puts("run(): sending {:progress, #{game_state.generations_computed}} to memory_pid #{inspect game_state.memory_pid}")
+    send(game_state.memory_pid, {:progress, game_state.generations_computed})
+    new_board =
+      game_state.starting_board
+      |> Board.advance()
+
+    %{game_state | starting_board: new_board, generations_computed: game_state.generations_computed + 1}
+    |> run()
   end
 end
