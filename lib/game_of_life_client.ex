@@ -10,11 +10,13 @@ defmodule GameOfLifeClient do
 
   def start(), do: start("http://localhost")
 
-  def start(endpoint) do
+  def start(endpoint), do: start(endpoint, "test")
+
+  def start(endpoint, name) do
     IO.puts("********************************************************************")
     IO.puts("****           Starting new Game of Life Client                ****")
     IO.puts("********************************************************************")
-    {:ok, guid} = register(endpoint, "test")
+    {:ok, guid} = register(endpoint, name)
     IO.inspect guid
     memory_pid = spawn(fn -> remember(0, nil) end)
     IO.inspect(memory_pid, label: "memory_pid")
