@@ -4,6 +4,15 @@ defmodule Board do
   def advance_distributed(current_board) do
     current_board
     |> split_board()
+    |> Enum.map(fn segment ->
+      Task.async(fn ->
+        advance_segment(segment)
+      end)
+    end)
+    |> Enum.map(&Task.await(&1))
+    |> List.flatten
+    |> Enum.uniq
+    |> IO.inspect(label: "unique result")
   end
 
   def split_board(cells) do
@@ -29,8 +38,6 @@ defmodule Board do
 
     midpoint_x = (max_x - min_x) / 2 + min_x
     midpoint_y = (max_y - min_y) / 2 + min_y
-
-    IO.puts("midpoint_x = #{midpoint_x}, midpoint_y = #{midpoint_y}")
 
     top_left = Enum.filter(cells, fn c -> c.x <= midpoint_x && c.y >= midpoint_y end)
     top_right = Enum.filter(cells, fn c -> c.x > midpoint_x && c.y >= midpoint_y end)
@@ -85,6 +92,27 @@ defmodule Board do
     |> Enum.uniq()
     |> Enum.reduce([], fn cell, acc ->
       case cell_should_live?(cell, current_board) do
+        true -> [cell | acc]
+        _ -> acc
+      end
+    end)
+  end
+
+  def advance_segment(segment = %BoardSegment{}) do
+    cells_and_border = segment.cells ++ segment.border_cells
+
+    segment.cells
+    |> IO.inspect(label: "#{segment.id} cells")
+    |> Enum.reduce([], fn cell, acc ->
+      [cell | neighbors(cell)] ++ acc
+    end)
+    |> Enum.concat(segment.border_cells)
+    |> IO.inspect(label: "all #{segment.id} cells (including border)")
+    |> Enum.uniq()
+    |> Enum.reduce([], fn cell, acc ->
+      cell_should_live?(cell, cells_and_border)
+      |> IO.inspect(label: "#{segment.id} @ (#{cell.x}, #{cell.y}) should live")
+      |> case do
         true -> [cell | acc]
         _ -> acc
       end
