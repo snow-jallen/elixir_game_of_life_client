@@ -1,12 +1,6 @@
 defmodule BoardTest do
   use ExUnit.Case
 
-  test "make cells" do
-    actual = Board.make_cells(%Cell{x: 2, y: 2}, :x, 5) |> Enum.sort
-    expected = [%Cell{x: 2, y: 2}, %Cell{x: 3, y: 2}, %Cell{x: 4, y: 2}, %Cell{x: 5, y: 2}, %Cell{x: 6, y: 2}]
-    assert expected == actual
-  end
-
   test "split board" do
     starting_board = [
       %Cell{x: 2, y: 4}, %Cell{x: 3, y: 4}, %Cell{x: 4, y: 4},

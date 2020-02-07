@@ -53,9 +53,6 @@ defmodule Board do
       end)
       |> Enum.sort
 
-    top_left_x_border = make_cells(%Cell{x: midpoint_x + 1, y: midpoint_y + 1}, :x, (midpoint_x - min_x + 1) * -1)
-    top_left_y_border = make_cells(%Cell{x: midpoint_x - 1, y: midpoint_y + 1}, :y, (midpoint_y - max_y + 1))
-
     top_right_live_border_cells =
       Enum.filter(cells, fn c ->
         (c.x == midpoint_x && c.y >= midpoint_y - 1) ||
@@ -79,7 +76,6 @@ defmodule Board do
         id: :T_L,
         cells: top_left,
         live_border_cells: top_left_live_border_cells,
-        all_border_cells: [top_left_x_border | top_left_y_border],
         x_border: midpoint_x + 1,
         y_border: midpoint_y - 1,
         caller: self()
@@ -109,20 +105,6 @@ defmodule Board do
         caller: self()
       }
     ]
-  end
-
-  def make_cells(cell = %Cell{}, :x, num_cells) do
-    (cell.x)..(cell.x + num_cells - 1)
-    |> Enum.reduce([], fn n, acc ->
-      [%Cell{x: n, y: cell.y} | acc]
-    end)
-  end
-
-  def make_cells(cell = %Cell{}, :y, num_cells) do
-    (cell.y)..(cell.y + num_cells - 1)
-    |> Enum.reduce([], fn n, acc ->
-      [%Cell{x: cell.x, y: n} | acc]
-    end)
   end
 
   def advance_segment(segment = %BoardSegment{}) do
