@@ -46,26 +46,29 @@ defmodule Board do
     bottom_right = Enum.filter(cells, fn c -> c.x > midpoint_x && c.y < midpoint_y end)
     bottom_left = Enum.filter(cells, fn c -> c.x <= midpoint_x && c.y < midpoint_y end)
 
-    top_left_border_cells =
+    top_left_live_border_cells =
       Enum.filter(cells, fn c ->
         (c.x == midpoint_x + 1 && c.y >= midpoint_y - 1) ||
         (c.y == midpoint_y - 1 && c.x <= midpoint_x + 1)
       end)
       |> Enum.sort
 
-    top_right_border_cells =
+    top_left_x_border = make_cells(%Cell{x: midpoint_x + 1, y: midpoint_y + 1}, :x, (midpoint_x - min_x + 1) * -1)
+    top_left_y_border = make_cells(%Cell{x: midpoint_x - 1, y: midpoint_y + 1}, :y, (midpoint_y - max_y + 1))
+
+    top_right_live_border_cells =
       Enum.filter(cells, fn c ->
         (c.x == midpoint_x && c.y >= midpoint_y - 1) ||
         (c.y == midpoint_y - 1 && c.x >= midpoint_x)
        end)
 
-    bottom_right_border_cells =
+    bottom_right_live_border_cells =
       Enum.filter(cells, fn c ->
         (c.x == midpoint_x && c.y <= midpoint_y) ||
         (c.y == midpoint_y && c.x >= midpoint_x)
        end)
 
-    bottom_left_border_cells =
+    bottom_left_live_border_cells =
       Enum.filter(cells, fn c ->
         (c.x == midpoint_x + 1 && c.y <= midpoint_y) ||
         (c.y == midpoint_y && c.x <= midpoint_x + 1)
@@ -75,7 +78,8 @@ defmodule Board do
       %BoardSegment{
         id: :T_L,
         cells: top_left,
-        border_cells: top_left_border_cells,
+        live_border_cells: top_left_live_border_cells,
+        all_border_cells: [top_left_x_border | top_left_y_border],
         x_border: midpoint_x + 1,
         y_border: midpoint_y - 1,
         caller: self()
@@ -83,7 +87,7 @@ defmodule Board do
       %BoardSegment{
         id: :T_R,
         cells: top_right,
-        border_cells: top_right_border_cells,
+        live_border_cells: top_right_live_border_cells,
         x_border: midpoint_x,
         y_border: midpoint_y - 1,
         caller: self()
@@ -91,7 +95,7 @@ defmodule Board do
       %BoardSegment{
         id: :B_R,
         cells: bottom_right,
-        border_cells: bottom_right_border_cells,
+        live_border_cells: bottom_right_live_border_cells,
         x_border: midpoint_x,
         y_border: midpoint_y,
         caller: self()
@@ -99,7 +103,7 @@ defmodule Board do
       %BoardSegment{
         id: :B_L,
         cells: bottom_left,
-        border_cells: bottom_left_border_cells,
+        live_border_cells: bottom_left_live_border_cells,
         x_border: midpoint_x + 1,
         y_border: midpoint_y,
         caller: self()
@@ -107,18 +111,34 @@ defmodule Board do
     ]
   end
 
+  def make_cells(cell = %Cell{}, :x, num_cells) do
+    (cell.x)..(cell.x + num_cells - 1)
+    |> Enum.reduce([], fn n, acc ->
+      [%Cell{x: n, y: cell.y} | acc]
+    end)
+  end
+
+  def make_cells(cell = %Cell{}, :y, num_cells) do
+    (cell.y)..(cell.y + num_cells - 1)
+    |> Enum.reduce([], fn n, acc ->
+      [%Cell{x: cell.x, y: n} | acc]
+    end)
+  end
+
   def advance_segment(segment = %BoardSegment{}) do
-    cells_and_border = segment.cells ++ segment.border_cells
+    cells_and_border = segment.cells ++ segment.live_border_cells
 
     cells_with_neighbors =
       segment.cells
       |> Enum.reduce([], fn cell, acc ->
         [cell | neighbors(cell)] ++ acc
       end)
-      |> Enum.concat(segment.border_cells)
+      |> Enum.concat(segment.all_border_cells)
+      |> IO.inspect(label: "\n***\n#{segment.id}: segment cells with neighbors")
+      |> IO.inspect(label: "segment cells with neighbors _and_ _*all*_ _border_ _cells_")
       |> Enum.uniq()
       |> Enum.sort()
-      |> IO.inspect(label: "all #{segment.id} cells (including border)")
+      |> IO.inspect(label: "#{segment.id}: all cells (including border)")
 
     cells_of_interest =
       cells_with_neighbors

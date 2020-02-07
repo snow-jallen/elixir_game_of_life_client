@@ -1,6 +1,12 @@
 defmodule BoardTest do
   use ExUnit.Case
 
+  test "make cells" do
+    actual = Board.make_cells(%Cell{x: 2, y: 2}, :x, 5) |> Enum.sort
+    expected = [%Cell{x: 2, y: 2}, %Cell{x: 3, y: 2}, %Cell{x: 4, y: 2}, %Cell{x: 5, y: 2}, %Cell{x: 6, y: 2}]
+    assert expected == actual
+  end
+
   test "split board" do
     starting_board = [
       %Cell{x: 2, y: 4}, %Cell{x: 3, y: 4}, %Cell{x: 4, y: 4},
@@ -11,7 +17,7 @@ defmodule BoardTest do
     [top_left = %BoardSegment{id: :T_L} | _rest] = Board.split_board(starting_board)
 
     assert top_left.cells |> Enum.sort == [ %Cell{x: 2, y: 4}, %Cell{x: 3, y: 4}, %Cell{x: 2, y: 3}, %Cell{x: 3, y: 3}] |> Enum.sort
-    assert top_left.border_cells |> Enum.sort == [%Cell{x: 4, y: 4}, %Cell{x: 4, y: 3}, %Cell{x: 4, y: 2}, %Cell{x: 3, y: 2}, %Cell{x: 2, y: 2}] |> Enum.sort
+    assert top_left.live_border_cells |> Enum.sort == [%Cell{x: 4, y: 4}, %Cell{x: 4, y: 3}, %Cell{x: 4, y: 2}, %Cell{x: 3, y: 2}, %Cell{x: 2, y: 2}] |> Enum.sort
   end
 
   test "exclude_border_cells" do
@@ -32,18 +38,6 @@ defmodule BoardTest do
 
     expected = Board.advance(starting_board) |> Enum.sort
     actual = Board.advance_distributed(starting_board) |> Enum.sort
-
-    assert expected == actual
-
-    expected = Enum.reduce(1..9, starting_board, fn x, board -> Board.advance(board) end) |> Enum.sort
-    actual = Enum.reduce(1..9, starting_board, fn x, board ->
-      IO.puts("******************************")
-      IO.puts("*** Doing generation #{x}")
-      IO.puts("******************************")
-      Board.advance_distributed(board)
-      |> Enum.sort()
-      |> IO.inspect(label: "Generation #{x}")
-    end) |> Enum.sort
 
     assert expected == actual
   end
@@ -87,6 +81,25 @@ defmodule BoardTest do
     actual_gen8 = Board.advance_distributed(gen7) |> Enum.sort()
 
     assert expected_gen8 == actual_gen8
+  end
 
+  test "9th generation" do
+    starting_board = [
+      %Cell{x: 2, y: 4}, %Cell{x: 3, y: 4}, %Cell{x: 4, y: 4},
+      %Cell{x: 2, y: 3}, %Cell{x: 3, y: 3}, %Cell{x: 4, y: 3},
+      %Cell{x: 2, y: 2}, %Cell{x: 3, y: 2}, %Cell{x: 4, y: 2},
+    ]
+
+    expected = Enum.reduce(1..9, starting_board, fn _, board -> Board.advance(board) end) |> Enum.sort
+    actual = Enum.reduce(1..9, starting_board, fn x, board ->
+      IO.puts("******************************")
+      IO.puts("*** Doing generation #{x}")
+      IO.puts("******************************")
+      Board.advance_distributed(board)
+      |> Enum.sort()
+      |> IO.inspect(label: "Generation #{x}")
+    end) |> Enum.sort
+
+    assert expected == actual
   end
 end
