@@ -6,7 +6,6 @@ defmodule Board do
     |> IO.inspect(label: "current_board")
     |> split_board()
     |> IO.inspect(label: "segments")
-    #|> Enum.take(1)
     |> Enum.map(fn segment ->
       #Task.async(fn ->
         advance_segment(segment)
@@ -15,7 +14,6 @@ defmodule Board do
     #|> Enum.map(&Task.await(&1))
     |> List.flatten
     |> Enum.uniq
-    |> IO.inspect(label: "unique result")
   end
 
   def split_board(cells) do
@@ -49,16 +47,29 @@ defmodule Board do
     bottom_left = Enum.filter(cells, fn c -> c.x <= midpoint_x && c.y < midpoint_y end)
 
     top_left_border_cells =
-      Enum.filter(cells, fn c -> c.x == midpoint_x + 1 && c.y >= midpoint_y - 1 end)
+      Enum.filter(cells, fn c ->
+        (c.x == midpoint_x + 1 && c.y >= midpoint_y - 1) ||
+        (c.y == midpoint_y - 1 && c.x <= midpoint_x + 1)
+      end)
+      |> Enum.sort
 
     top_right_border_cells =
-      Enum.filter(cells, fn c -> c.x == midpoint_x && c.y >= midpoint_y - 1 end)
+      Enum.filter(cells, fn c ->
+        (c.x == midpoint_x && c.y >= midpoint_y - 1) ||
+        (c.y == midpoint_y - 1 && c.x >= midpoint_x)
+       end)
 
     bottom_right_border_cells =
-      Enum.filter(cells, fn c -> c.x == midpoint_x && c.y <= midpoint_y end)
+      Enum.filter(cells, fn c ->
+        (c.x == midpoint_x && c.y <= midpoint_y) ||
+        (c.y == midpoint_y && c.x >= midpoint_x)
+       end)
 
     bottom_left_border_cells =
-      Enum.filter(cells, fn c -> c.x == midpoint_x + 1 && c.y == midpoint_y end)
+      Enum.filter(cells, fn c ->
+        (c.x == midpoint_x + 1 && c.y <= midpoint_y) ||
+        (c.y == midpoint_y && c.x <= midpoint_x + 1)
+       end)
 
     [
       %BoardSegment{
@@ -73,18 +84,24 @@ defmodule Board do
         id: :T_R,
         cells: top_right,
         border_cells: top_right_border_cells,
+        x_border: midpoint_x,
+        y_border: midpoint_y - 1,
         caller: self()
       },
       %BoardSegment{
         id: :B_R,
         cells: bottom_right,
         border_cells: bottom_right_border_cells,
+        x_border: midpoint_x,
+        y_border: midpoint_y,
         caller: self()
       },
       %BoardSegment{
         id: :B_L,
         cells: bottom_left,
         border_cells: bottom_left_border_cells,
+        x_border: midpoint_x + 1,
+        y_border: midpoint_y,
         caller: self()
       }
     ]
