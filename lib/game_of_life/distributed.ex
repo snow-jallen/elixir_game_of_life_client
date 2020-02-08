@@ -7,10 +7,7 @@ defmodule Segment do
 
     cells =
       board
-      |> Enum.filter(fn c ->
-        c.x >= x && c.x < (x + size) &&
-        c.y >= y && c.y < (x + size)
-      end)
+      |> Enum.filter(&is_in_segment(&1,{x,y},size))
 
     full_border = get_border({x,y}, size)
     live_border_cells =
@@ -19,6 +16,10 @@ defmodule Segment do
       end)
 
     %Segment{segment | live_cells: cells, live_border_cells: live_border_cells}
+  end
+
+  def is_in_segment(c = %Cell{}, _origin = {x,y}, size) do
+    (c.x >= x && c.x < (x + size) && c.y >= y && c.y < (y + size))
   end
 
   def get_border(origin = {x,y}, size) do
@@ -31,23 +32,101 @@ defmodule Segment do
       %Cell{x: x, y: y}
     end
   end
+
+  def exclude_outside_cells(cells, segment = %Segment{}) do
+    cells
+    |> Enum.filter(fn c -> is_in_segment(c, segment.origin, segment.size) end)
+  end
+
+  # returns a list of live cells
+  def solve_segment(segment = %Segment{live_border_cells: live_border, live_cells: cells}) do
+    cells_and_border = cells ++ live_border
+
+    _cells_and_neighbors =
+      cells_and_border
+      |> Enum.reduce([], fn cell, acc ->
+        [cell | Board.neighbors(cell)] ++ acc
+      end)
+      |> Enum.uniq()
+      |> exclude_outside_cells(segment)
+      |> Enum.sort()
+      |> Enum.reduce([], fn cell, acc ->
+        Board.cell_should_live?(cell, cells_and_border)
+        #|> IO.inspect(label: "#{segment.id} @ (#{cell.x}, #{cell.y}) should live")
+        |> case do
+          true -> [cell | acc]
+          _ -> acc
+        end
+      end)
+  end
 end
 
 defmodule Distributed do
   def advance(board) do
-
-
+    board
+    |> split #returns [{id, origin, size}]
+    |> Enum.map(fn segment_definition ->
+      Segment.new(segment_definition, board)
+    end) # returns [%Segment{}]
+    |> Enum.map(fn segment ->
+      Task.async(fn ->
+        Segment.solve_segment(segment)
+      end)
+    end)
+    |> Enum.map(&Task.await(&1))
+    |> List.flatten
+    |> Enum.uniq
   end
 
   # returns a list of {id, origin, size} tuples
   def split(board) do
+    {{min_x, min_y}, {max_x, max_y}} = bounds = get_bounds(board)
 
+    num_segments = determine_times_to_cut(bounds)
+
+    width = max_x - min_x + 1
+    height = max_y - min_y + 1
+
+    segment_width = width / num_segments
+    segment_height = height / num_segments
+
+    segment_size = trunc(max(segment_width, segment_height))
+
+    segment_size =
+      case rem(segment_size, 2) do
+        0 -> segment_size
+        _ -> segment_size + 1
+      end
+
+    for x <- 0..(num_segments - 1), y <- 0..(num_segments - 1) do
+      {"#{x}-#{y}", {min_x + (x * segment_size), min_y + (y * segment_size)}, segment_size}
+    end
   end
 
+  def determine_times_to_cut(_), do: 2
 
+  def get_bounds(cells) do
+    max_y =
+      cells
+      |> Enum.map(& &1.y)
+      |> Enum.max()
 
-  # returns a list of live cells
-  def solve_segment(segment) do
+    max_x =
+      cells
+      |> Enum.map(& &1.x)
+      |> Enum.max()
 
+    min_y =
+      cells
+      |> Enum.map(& &1.y)
+      |> Enum.min()
+
+    min_x =
+      cells
+      |> Enum.map(& &1.x)
+      |> Enum.min()
+
+    {{min_x, min_y}, {max_x, max_y}}
   end
+
 end
