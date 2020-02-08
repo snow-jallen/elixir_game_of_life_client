@@ -33,23 +33,30 @@ defmodule Segment do
     end
   end
 
-  def exclude_outside_cells(cells, segment = %Segment{}) do
+  def exclude_outside_cells(cells, origin, size) do
     cells
-    |> Enum.filter(fn c -> is_in_segment(c, segment.origin, segment.size) end)
+    |> Enum.filter(fn c -> is_in_segment(c, origin, size) end)
   end
 
   # returns a list of live cells
   def solve_segment(segment = %Segment{live_border_cells: live_border, live_cells: cells}) do
     cells_and_border = cells ++ live_border
 
+    {x,y} = segment.origin
+
     _cells_and_neighbors =
       cells_and_border
+      |> Enum.sort()
+      |> IO.inspect(label: "#{segment.id}: cells_and_border")
       |> Enum.reduce([], fn cell, acc ->
         [cell | Board.neighbors(cell)] ++ acc
       end)
       |> Enum.uniq()
-      |> exclude_outside_cells(segment)
       |> Enum.sort()
+      |> IO.inspect(label: "#{segment.id}: cells_and_border_with_neighbors")
+      |> exclude_outside_cells({x - 1, y - 1}, (segment.size + 2))
+      |> Enum.sort()
+      |> IO.inspect(label: "#{segment.id}: excluded outside cells")
       |> Enum.reduce([], fn cell, acc ->
         Board.cell_should_live?(cell, cells_and_border)
         #|> IO.inspect(label: "#{segment.id} @ (#{cell.x}, #{cell.y}) should live")
@@ -68,12 +75,13 @@ defmodule Distributed do
     |> Enum.map(fn segment_definition ->
       Segment.new(segment_definition, board)
     end) # returns [%Segment{}]
+    |> IO.inspect(label: "segments")
     |> Enum.map(fn segment ->
-      Task.async(fn ->
+      # Task.async(fn ->
         Segment.solve_segment(segment)
-      end)
+      # end)
     end)
-    |> Enum.map(&Task.await(&1))
+    #|> Enum.map(&Task.await(&1))
     |> List.flatten
     |> Enum.uniq
   end
