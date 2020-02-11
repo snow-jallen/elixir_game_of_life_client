@@ -98,6 +98,7 @@ defmodule GameOfLifeClient do
                   cells =
                     seed_board
                     |> Enum.map(fn c -> %Cell{x: c["x"], y: c["y"]} end)
+throw "you are trying to integrate %Game{method: :simple/:distributed_v1} <====  !!!"
                   starting_game_state = %Game{memory_pid: memory_pid, generations_to_compute: generations_to_compute, generations_computed: 0, starting_board: cells}
                   spawn(fn -> Game.run(starting_game_state) end)
                 _ -> :keep_going
