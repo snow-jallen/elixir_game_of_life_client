@@ -2,7 +2,7 @@ defmodule RleParser do
   def parse(rle_string) do
     [_x, x, _y, y, _rule, rule | lines] =
       rle_string
-      |> String.split([",", "=", "\n", "$", "!"], trim: true)
+      |> String.split([",", "=", "\n", "\r", "$", "!"], trim: true)
 
     result = %{
       x: x |> String.trim |> String.to_integer,

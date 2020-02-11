@@ -22,7 +22,7 @@ defmodule GameOfLifeClient.MixProject do
   defp deps do
     [
       {:httpoison, "~> 1.6"},
-      {:poison, "~> 3.1"}
+      {:poison, "~> 3.1"},
     ]
   end
 end
