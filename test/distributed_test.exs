@@ -58,7 +58,7 @@ defmodule DistributedTest do
 
     cells_and_neighbors = [%Cell{x: 2, y: 3}, %Cell{x: 3, y: 2}, %Cell{x: 3, y: 3}, %Cell{x: 2, y: 2}]
 
-    actual_cells_of_interest = Segment.exclude_outside_cells(cells_and_neighbors, segment)
+    actual_cells_of_interest = Segment.exclude_outside_cells(cells_and_neighbors, segment.origin, segment.size)
     expected_cells_of_interest = [%Cell{x: 2, y: 2}]
 
     assert actual_cells_of_interest == expected_cells_of_interest
@@ -141,7 +141,12 @@ defmodule DistributedTest do
 
     actual_split = Distributed.split(starting_board)
 
-    expected_split = [{"0-0", {2, 2}, 2}, {"0-1", {2, 4}, 2}, {"1-0", {4, 2}, 2}, {"1-1", {4, 4}, 2}]
+    expected_split = [
+      {"0-0", {1, 1}, 4},
+      {"0-1", {1, 5}, 4},
+      {"1-0", {5, 1}, 4},
+      {"1-1", {5, 5}, 4}
+    ]
 
     assert actual_split == expected_split
   end

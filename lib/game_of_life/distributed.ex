@@ -54,7 +54,7 @@ defmodule Segment do
       |> Enum.uniq()
       |> Enum.sort()
       |> IO.inspect(label: "#{segment.id}: cells_and_border_with_neighbors")
-      |> exclude_outside_cells({x - 1, y - 1}, (segment.size + 2))
+      |> exclude_outside_cells({x, y}, (segment.size))
       |> Enum.sort()
       |> IO.inspect(label: "#{segment.id}: excluded outside cells")
       |> Enum.reduce([], fn cell, acc ->
@@ -95,16 +95,24 @@ defmodule Distributed do
     width = max_x - min_x + 1
     height = max_y - min_y + 1
 
-    segment_width = width / num_segments
-    segment_height = height / num_segments
+    IO.puts("width: #{width}; height: #{height}")
+
+    segment_width = (width / num_segments) + 1
+    segment_height = (height / num_segments) + 1
+
+    IO.puts("segment_width=#{segment_width}; segment_height=#{segment_height}")
 
     segment_size = trunc(max(segment_width, segment_height))
+
+    IO.puts("segment_size=#{segment_size}")
 
     segment_size =
       case rem(segment_size, 2) do
         0 -> segment_size
         _ -> segment_size + 1
       end
+
+    IO.puts("segment_size=#{segment_size}")
 
     for x <- 0..(num_segments - 1), y <- 0..(num_segments - 1) do
       {"#{x}-#{y}", {min_x + (x * segment_size), min_y + (y * segment_size)}, segment_size}
@@ -134,7 +142,7 @@ defmodule Distributed do
       |> Enum.map(& &1.x)
       |> Enum.min()
 
-    {{min_x, min_y}, {max_x, max_y}}
+    {{min_x - 1, min_y - 1}, {max_x + 1, max_y + 1}}
   end
 
 end
