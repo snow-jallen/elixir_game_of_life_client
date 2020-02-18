@@ -7,6 +7,8 @@ defmodule GameOfLifeClient do
 
   """
   alias HTTPoison
+  @method :distributed_v1
+  #@method :simple
 
   def start(), do: start("http://localhost")
 
@@ -16,13 +18,13 @@ defmodule GameOfLifeClient do
     IO.puts("********************************************************************")
     IO.puts("****           Starting new Game of Life Client                ****")
     IO.puts("********************************************************************")
-    {:ok, guid} = register(endpoint, name)
+    {:ok, guid} = register(endpoint, "#{name} (#{Atom.to_string(@method)})")
     IO.inspect guid
     memory_pid = spawn(fn -> remember(0, nil) end)
-    IO.inspect(memory_pid, label: "memory_pid")
+    #IO.inspect(memory_pid, label: "memory_pid")
 
     heartbeat_pid = spawn(fn -> heartbeat(endpoint, guid, memory_pid, nil) end)
-    IO.inspect(heartbeat_pid, label: "heartbeat_pid")
+    #IO.inspect(heartbeat_pid, label: "heartbeat_pid")
     heartbeat_pid
   end
 
@@ -36,7 +38,7 @@ defmodule GameOfLifeClient do
       %HTTPoison.Response{status_code: 200, body: body} ->
         body
         |> Poison.decode
-        |> IO.inspect(label: "register")
+        #|> IO.inspect(label: "register")
         |> case do
           {:ok, %{"token" => token}} -> {:ok, token}
           _ -> {:error, "Unable to identify token in 200 response"}
@@ -53,10 +55,10 @@ defmodule GameOfLifeClient do
     send(memory_pid, {:get, self()})
     receive do
       {:current_generation, gen} ->
-        IO.puts("heartbeat: current generation=#{gen}")
+        #IO.puts("heartbeat: current generation=#{gen}")
         post_update(endpoint, token, gen, solver_pid, memory_pid)
       {:complete, generations_computed, final_board} ->
-        IO.puts("heartbeat: COMPLETED!")
+        #IO.puts("heartbeat: COMPLETED!")
         post_final_update(endpoint, token, generations_computed, final_board)
     end
   end
@@ -66,11 +68,11 @@ defmodule GameOfLifeClient do
       {:get, pid} ->
         case final_board do
           nil ->
-            IO.puts("mem: Sending {:current_generation, #{current_generation}} because no final_board")
+            #IO.puts("mem: Sending {:current_generation, #{current_generation}} because no final_board")
             send(pid, {:current_generation, current_generation})
             remember(current_generation, final_board)
           _ ->
-            IO.puts("mem: sending {:complete, #{current_generation}, final_board}")
+            #IO.puts("mem: sending {:complete, #{current_generation}, final_board}")
             send(pid, {:complete, current_generation, final_board})
         end
       {:progress, new_generation} ->
@@ -88,7 +90,7 @@ defmodule GameOfLifeClient do
       %HTTPoison.Response{status_code: 200, body: body} ->
         body
         |> Poison.decode
-        |> IO.inspect(label: "update", limit: 6, pretty: true)
+        #|> IO.inspect(label: "update", limit: 6, pretty: true)
         |> case do
           {:ok, %{"isError" => false, "gameState" => game_state, "generationsToCompute" => generations_to_compute, "seedBoard" => seed_board}} ->
             solver_pid =
@@ -98,8 +100,7 @@ defmodule GameOfLifeClient do
                   cells =
                     seed_board
                     |> Enum.map(fn c -> %Cell{x: c["x"], y: c["y"]} end)
-throw "you are trying to integrate %Game{method: :simple/:distributed_v1} <====  !!!"
-                  starting_game_state = %Game{memory_pid: memory_pid, generations_to_compute: generations_to_compute, generations_computed: 0, starting_board: cells}
+                  starting_game_state = %Game{memory_pid: memory_pid, generations_to_compute: generations_to_compute, generations_computed: 0, starting_board: cells, method: @method}
                   spawn(fn -> Game.run(starting_game_state) end)
                 _ -> :keep_going
               end
@@ -107,22 +108,22 @@ throw "you are trying to integrate %Game{method: :simple/:distributed_v1} <==== 
           {:ok, %{"errorMessage" => error}} -> {:error, error}
         end
     end
-    |> IO.inspect(label: "output from post_update! case")
+    #|> IO.inspect(label: "output from post_update! case")
     |> case do
       {:error, error} ->
         IO.puts("reporting error!!!")
         {:error, error}
       :keep_going ->
-        IO.puts("keep going w/original solver_pid")
+        #IO.puts("keep going w/original solver_pid")
         heartbeat(endpoint, token, memory_pid, solver_pid)
       solver_pid ->
-        IO.puts("solver pid returned, calling heartbeat w/solver_pid")
+        #IO.puts("solver pid returned, calling heartbeat w/solver_pid")
         heartbeat(endpoint, token, memory_pid, solver_pid)
     end
   end
 
   def post_final_update(endpoint, token, generations_computed, final_board) do
-    IO.puts("post_final_update()")
+    #IO.puts("post_final_update()")
 
     result_board = Enum.map(final_board, fn c ->
       %{"x" => c.x, "y" => c.y}
@@ -135,10 +136,10 @@ throw "you are trying to integrate %Game{method: :simple/:distributed_v1} <==== 
       %HTTPoison.Response{status_code: 200, body: body} ->
         body
         |> Poison.decode
-        |> IO.inspect(label: "update", limit: 6, pretty: true)
+        #|> IO.inspect(label: "update", limit: 6, pretty: true)
         |> case do
           {:ok, %{"isError" => false, "gameState" => _game_state, "generationsToCompute" => _generations_to_compute, "seedBoard" => _seed_board}} ->
-            IO.puts("got back an ok response")
+            #IO.puts("got back an ok response")
             :ok
           {:ok, %{"errorMessage" => error}} -> {:error, error}
         end

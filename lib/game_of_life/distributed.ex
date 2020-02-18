@@ -47,16 +47,16 @@ defmodule Segment do
     _cells_and_neighbors =
       cells_and_border
       |> Enum.sort()
-      |> IO.inspect(label: "#{segment.id}: cells_and_border")
+      #|> IO.inspect(label: "#{segment.id}: cells_and_border")
       |> Enum.reduce([], fn cell, acc ->
         [cell | Board.neighbors(cell)] ++ acc
       end)
       |> Enum.uniq()
       |> Enum.sort()
-      |> IO.inspect(label: "#{segment.id}: cells_and_border_with_neighbors")
+      #|> IO.inspect(label: "#{segment.id}: cells_and_border_with_neighbors")
       |> exclude_outside_cells({x, y}, (segment.size))
       |> Enum.sort()
-      |> IO.inspect(label: "#{segment.id}: excluded outside cells")
+      #|> IO.inspect(label: "#{segment.id}: excluded outside cells")
       |> Enum.reduce([], fn cell, acc ->
         Board.cell_should_live?(cell, cells_and_border)
         #|> IO.inspect(label: "#{segment.id} @ (#{cell.x}, #{cell.y}) should live")
@@ -69,13 +69,44 @@ defmodule Segment do
 end
 
 defmodule Distributed do
+  def solve_file(starting_json_path, num_generations) do
+    final_board =
+      json_to_cells(starting_json_path)
+      |> do_solve(num_generations)
+      |> cells_to_json()
+
+    Path.rootname(starting_json_path) <> "_#{num_generations}_solved" <> Path.extname(starting_json_path)
+    |> File.write!(final_board)
+  end
+
+  def cells_to_json(cells) do
+    cells
+    |> Poison.encode!()
+  end
+
+  def do_solve(board, 0), do: board
+
+  def do_solve(board, num_generations) do
+    board
+    |> IO.inspect(label: "do_solve #{num_generations}", limit: 2)
+    |> advance
+    |> do_solve(num_generations - 1)
+  end
+
+  def json_to_cells(json_path) do
+    json_path
+    |> File.read!
+    |> Poison.decode!
+    |> Enum.map(fn c -> %Cell{x: c["X"], y: c["Y"]} end)
+  end
+
   def advance(board) do
     board
     |> split #returns [{id, origin, size}]
     |> Enum.map(fn segment_definition ->
       Segment.new(segment_definition, board)
     end) # returns [%Segment{}]
-    |> IO.inspect(label: "segments")
+    #|> IO.inspect(label: "segments")
     |> Enum.map(fn segment ->
       # Task.async(fn ->
         Segment.solve_segment(segment)
@@ -95,16 +126,16 @@ defmodule Distributed do
     width = max_x - min_x + 1
     height = max_y - min_y + 1
 
-    IO.puts("width: #{width}; height: #{height}")
+    #IO.puts("width: #{width}; height: #{height}")
 
     segment_width = (width / num_segments) + 1
     segment_height = (height / num_segments) + 1
 
-    IO.puts("segment_width=#{segment_width}; segment_height=#{segment_height}")
+    #IO.puts("segment_width=#{segment_width}; segment_height=#{segment_height}")
 
     segment_size = trunc(max(segment_width, segment_height))
 
-    IO.puts("segment_size=#{segment_size}")
+    #IO.puts("segment_size=#{segment_size}")
 
     segment_size =
       case rem(segment_size, 2) do
@@ -112,14 +143,14 @@ defmodule Distributed do
         _ -> segment_size + 1
       end
 
-    IO.puts("segment_size=#{segment_size}")
+    #IO.puts("segment_size=#{segment_size}")
 
     for x <- 0..(num_segments - 1), y <- 0..(num_segments - 1) do
       {"#{x}-#{y}", {min_x + (x * segment_size), min_y + (y * segment_size)}, segment_size}
     end
   end
 
-  def determine_times_to_cut(_), do: 2
+  def determine_times_to_cut(_), do: 12
 
   def get_bounds(cells) do
     max_y =
